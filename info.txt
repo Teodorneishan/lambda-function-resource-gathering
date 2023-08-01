@@ -1,0 +1,59 @@
+For task 2 :
+
+files:
+- boto3.zip and mysql_connector.zip as layers
+- inline code - paste lambda_function.py 
+
+
+- created rds with mariadb engine ; created 2 tables in the test db that initially configured.
+    CREATE TABLE vpcs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vpc_id VARCHAR(50),
+    cidr_block VARCHAR(50)
+);
+
+CREATE TABLE subnets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    subnet_id VARCHAR(50),
+    cidr_block VARCHAR(50),
+    vpc_id VARCHAR(50)
+);
+- i have tried using lambda function , to gather information regarding existing VPCs and subnets in the account
+- configured execution role - lambda-vpc-sqs-role (with permision policies for the lambda and attached it to same VPC as the RDS )
+- Lambda's security group with outbound rule for all traffic (0.0.0.0/0) and 3306 traffic to security group of the RDS 
+- public subnet attached to Lambda ; routing table consist of all traffic rule to igw and 172.31.0.0/16 to all local resources in VPC
+- RDS only internal access ( not public )
+    - same vpc
+    - all available subnets
+- created ec2 instance in same vpc to test connection to rds ( works )
+- tested 
+
+For lambda i used layers to import the binaries boto3 and mysql.connector 
+- at first went with python venv 
+- then tried packaging everything but file came too big and i wasnt able to edit lambda code 
+- found out that binaries need to be specific folder structure (python/lib/python3.11/site-packages)
+- extended execution time of lambda as it was taking 5 mins ( hanging at ec2.client establishing )
+- created layers for boto3 and mysql.connector, python3.11 
+- To allow your Lambda function to use the Boto3 library and make API calls to interact with AWS services, you don't need to configure any specific inbound rule in the security group associated with your Lambda function.
+
+
+Expectation: 
+- list available VPC and subnets , written in the db
+
+Actual Result:
+
+START RequestId: 7e5c3fbd-2efb-4d0b-92e5-b6c2f7e11043 Version: $LATEST
+Error: Connect timeout on endpoint URL: "https://ec2.eu-central-1.amazonaws.com/"
+Data saved to the database successfully!
+Available VPCs:
+Available Subnets:
+END RequestId: 7e5c3fbd-2efb-4d0b-92e5-b6c2f7e11043
+REPORT RequestId: 7e5c3fbd-2efb-4d0b-92e5-b6c2f7e11043	Duration: 309131.02 ms	Billed Duration: 309132 ms	Memory Size: 128 MB	Max Memory Used: 101 MB	Init Duration: 704.72 ms	
+
+- Seems boto3 is not working correctly or im not configuring it as expected;
+- vpc has access to internet so url that lambda uses to gather info is accessible
+- default region is eu-central-1
+
+
+For testing purposes:
+- used this as reference and it works : https://docs.aws.amazon.com/lambda/latest/dg/services-rds-tutorial.html    ( the lambda_function.zip file )
